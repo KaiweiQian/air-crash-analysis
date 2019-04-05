@@ -18,7 +18,7 @@ library(tidytext)
 
 ### Data
 
-```{r get.air.crash.data}
+```{r get.air.crash.data, results='hide'}
 # the url for the air accidents from 2014-01-01 to 2019-05-01
 url.air.accident <- "http://www.baaa-acro.com/crash-archives?created=2014-01-01&created_1=2019-04-01&field_crash_region_target_id=All&field_crash_country_target_id=&field_crash_registration_target_id=&field_crash_aircraft_target_id=&field_crash_operator_target_id=&field_crash_cause_target_id=All&field_crash_zone_target_id=&field_crash_site_type_target_id=All&field_crash_phase_type_target_id=All&field_crash_flight_type_target_id=All&field_crash_survivors_value=All&field_crash_city_target_id="
 
@@ -45,5 +45,33 @@ for(page in 0:5) {
 
 # save this dataframe to csv.file
 write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_2014-2019.csv")
+
+rm(list=ls()); gc()
 ```
 
+
+```{r get.air.crash.detail, results='hide'}
+tbl_air_accident_raw <- read_csv("./Intermediate Results/air_accident_table_2014-2019.csv")
+detail.url <- tbl_air_accident_raw$detail.url
+
+tbl_air_accident_raw$`Flight Phase` = ""
+tbl_air_accident_raw$`Circumstances` = ""
+
+# this loop can be very time-consuming, I'd recommend you don't run it.
+for(i in 1:length(detail.url)) {
+  tmp.url <- detail.url[i]
+  tmp.html <- read_html(tmp.url)
+  
+  tbl_air_accident_raw$`Flight Phase`[i] <- tmp.html %>%
+    html_node(xpath = '/html/body/div[1]/div[3]/div/section/div[2]/article/div/div[2]/div[@class="crash-flight-phase"]/a/div') %>%
+    html_text()
+    
+  tbl_air_accident_raw$`Circumstances`[i] <- tmp.html %>%
+    html_node(xpath = '/html/body/div[1]/div[3]/div/section/div[2]/article/div/div[2]/div[@class="crash-circumstances"]/div') %>%
+    html_text()
+}
+
+# save this dataframe to csv.file
+write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_with_detail_2014-2019.csv")
+rm(list=ls()); gc()
+```
