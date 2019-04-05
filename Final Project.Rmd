@@ -16,6 +16,7 @@ library(tidytext)
 ```
 
 
+### Data
 
 ```{r get.air.crash.data}
 # the url for the air accidents from 2014-01-01 to 2019-05-01
@@ -23,9 +24,26 @@ url.air.accident <- "http://www.baaa-acro.com/crash-archives?created=2014-01-01&
 
 tbl_air_accident_raw <- NULL
 # we know that it has 6 pages.
+page = 0
 for(page in 0:5) {
-  new_tbl <- 
+  tmp.url <- paste(url.air.accident, "&page=", page, sep="")
+  # Find the node contain the table
+  new_tbl_node <- read_html(tmp.url) %>%
+    html_node(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table') 
+  # There is a red plus at the end of each row. It leads the users to the detain page. So, we choose to save the url and later we'll go to this website for the detailed report.
+  new_tbl_detail_url <- new_tbl_node %>% 
+    html_nodes(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table/tbody/tr/td[8]/a/@href') %>%
+    html_text()
+  
+  new_tbl <- new_tbl_node %>%
+    html_table %>%
+    select(Date, `A/C Type`, Location, Fatalities, Registration) %>%
+    mutate(detail.url = paste("http://www.baaa-acro.com", new_tbl_detail_url, sep = ""))
+  
+  tbl_air_accident_raw <- rbind(tbl_air_accident_raw, new_tbl)
 }
 
-
+# save this dataframe to csv.file
+write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_2014-2019.csv")
 ```
+
