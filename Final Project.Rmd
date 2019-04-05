@@ -1,0 +1,21 @@
+---
+title: "Final Project"
+author: "Kaiwei Qian"
+date: "2019/4/5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rvest)
+library(magrittr)
+library(tidyverse)
+library(RCurl)
+library(jsonlite)
+library(tidytext)
+```
+
+```{r read.api.keys, echo=FALSE}
+source("api-keys.R")
+```
+
