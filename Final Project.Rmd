@@ -15,7 +15,17 @@ library(jsonlite)
 library(tidytext)
 ```
 
-```{r read.api.keys, echo=FALSE}
-source("api-keys.R")
-```
 
+
+```{r get.air.crash.data}
+# the url for the air accidents from 2014-01-01 to 2019-05-01
+url.air.accident <- "http://www.baaa-acro.com/crash-archives?created=2014-01-01&created_1=2019-04-01&field_crash_region_target_id=All&field_crash_country_target_id=&field_crash_registration_target_id=&field_crash_aircraft_target_id=&field_crash_operator_target_id=&field_crash_cause_target_id=All&field_crash_zone_target_id=&field_crash_site_type_target_id=All&field_crash_phase_type_target_id=All&field_crash_flight_type_target_id=All&field_crash_survivors_value=All&field_crash_city_target_id="
+
+tbl_air_accident_raw <- NULL
+# we know that it has 6 pages.
+for(page in 0:5) {
+  new_tbl <- 
+}
+
+
+```
