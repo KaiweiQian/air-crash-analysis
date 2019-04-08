@@ -116,7 +116,7 @@ crash_by_type <- df_air_crash %>%
 
 ggplot(data = crash_by_type, mapping = aes(x = `A/C Type`, y = n)) + 
   geom_bar(stat = "identity") + 
-  facet_wrap(~`Variable Name`, scales = "free") +
+  facet_wrap(~`Variable Name`, scales = "free", dir = "v") +
   xlab("Aircraft Type") + ylab("Number") +
   coord_flip() 
 ```
@@ -136,7 +136,7 @@ crash_by_phase <- df_air_crash %>%
 
 ggplot(data = crash_by_phase, mapping = aes(x = `Flight Phase`, y = n)) + 
   geom_bar(stat = "identity") + 
-  facet_wrap(~`Variable Name`, scales = "free") +
+  facet_wrap(~`Variable Name`, scales = "free", dir = "v") +
   xlab("Flight Phase") + ylab("Number") + 
   coord_flip() 
 ```
