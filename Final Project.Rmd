@@ -13,24 +13,33 @@ library(tidyverse)
 library(RCurl)
 library(jsonlite)
 library(tidytext)
+library(lubridate)
 ```
-
 
 ### Data
 
-```{r get.air.crash.data, results='hide'}
-# the url for the air accidents from 2014-01-01 to 2019-05-01
-url.air.accident <- "http://www.baaa-acro.com/crash-archives?created=2014-01-01&created_1=2019-04-01&field_crash_region_target_id=All&field_crash_country_target_id=&field_crash_registration_target_id=&field_crash_aircraft_target_id=&field_crash_operator_target_id=&field_crash_cause_target_id=All&field_crash_zone_target_id=&field_crash_site_type_target_id=All&field_crash_phase_type_target_id=All&field_crash_flight_type_target_id=All&field_crash_survivors_value=All&field_crash_city_target_id="
+The data used in this study is scraped from the Bureau of Aircraft Accidents Archives (http://www.baaa-acro.com/crash-archives) for the past 10 years (2009-2019). The Bureau of Aircraft Accidents Archives (B3A) was established in Geneva in 1990 for the purpose to deal with all information related to aviation accidentology.
+
+Scraping involves two steps.
+
+First, __read_html()__ and __html_table()__ is used to get the table data, whose row names are Date, A/C Type, Location, Fatalities and Registration. If you visit their website, you'll find that there is a plus sign at the end of each row of the table. Clicking on it leads you to the page that briefly summarizes the air crash. It provides us with the information such as Flight Phase and Circumstances.
+So, we also keep the hyperlinks to this page.
+
+In the second step, our spider visits the page that contains the brief summary of air crashes. We choose to keep the records of Flight Phase and Circumstances for further study. The Circumstances are used mainly by the text mining part of this project.
+
+```{r get.air.crash.data, results='hide', eval=FALSE, echo=FALSE}
+# the url for the air accidents from 2009-01-01 to 2019-04-01
+url.air.accident <- "http://www.baaa-acro.com/crash-archives?created=2009-01-01&created_1=2019-04-01&field_crash_region_target_id=All&field_crash_country_target_id=&field_crash_registration_target_id=&field_crash_aircraft_target_id=&field_crash_operator_target_id=&field_crash_cause_target_id=All&field_crash_zone_target_id=&field_crash_site_type_target_id=All&field_crash_phase_type_target_id=All&field_crash_flight_type_target_id=All&field_crash_survivors_value=All&field_crash_city_target_id="
 
 tbl_air_accident_raw <- NULL
-# we know that it has 6 pages.
+# we know that it has 14 pages.
 page = 0
-for(page in 0:5) {
+for(page in 0:13) {
   tmp.url <- paste(url.air.accident, "&page=", page, sep="")
   # Find the node contain the table
   new_tbl_node <- read_html(tmp.url) %>%
     html_node(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table') 
-  # There is a red plus at the end of each row. It leads the users to the detain page. So, we choose to save the url and later we'll go to this website for the detailed report.
+  # There is a red plus at the end of each row. It leads the users to the detail page. So, we choose to save the url and later we'll go to this website for the detailed report.
   new_tbl_detail_url <- new_tbl_node %>% 
     html_nodes(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table/tbody/tr/td[8]/a/@href') %>%
     html_text()
@@ -44,14 +53,15 @@ for(page in 0:5) {
 }
 
 # save this dataframe to csv.file
-write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_2014-2019.csv")
+write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_2009-2019.csv")
 
 rm(list=ls()); gc()
 ```
 
 
-```{r get.air.crash.detail, results='hide'}
-tbl_air_accident_raw <- read_csv("./Intermediate Results/air_accident_table_2014-2019.csv")
+```{r get.air.crash.detail, results='hide', eval=FALSE, echo=FALSE}
+tbl_air_accident_raw <- read_csv("./Intermediate Results/air_accident_table_2009-2019.csv")
+
 detail.url <- tbl_air_accident_raw$detail.url
 
 tbl_air_accident_raw$`Flight Phase` = ""
@@ -59,6 +69,7 @@ tbl_air_accident_raw$`Circumstances` = ""
 
 # this loop can be very time-consuming, I'd recommend you don't run it.
 for(i in 1:length(detail.url)) {
+  # print(i)
   tmp.url <- detail.url[i]
   tmp.html <- read_html(tmp.url)
   
@@ -72,6 +83,127 @@ for(i in 1:length(detail.url)) {
 }
 
 # save this dataframe to csv.file
-write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_with_detail_2014-2019.csv")
+write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_with_detail_2009-2019.csv")
 rm(list=ls()); gc()
+# Save it as an intermediate result.
+```
+
+### Exploratory Analysis
+
+```{r exploratory.read.data, message=FALSE, echo=FALSE}
+# read the data
+df_air_crash <- read_csv("./Intermediate Results/air_accident_table_with_detail_2009-2019.csv")
+
+# convert the date from String to Date and remove the column of detail.url
+df_air_crash <- df_air_crash %>%
+  mutate(Date = mdy(Date), detail.url = NULL)
+# glimpse at the dataset
+glimpse(df_air_crash)
+```
+
+As shown the table above, our dataset contains `r dim(df_air_crash)[1]` observations and `r dim(df_air_crash)[2]` variables. The `r dim(df_air_crash)[2]` variables are `r paste(names(df_air_crash), collapse = ", ")`.
+
+Barplots are employed to see what types of aircraft is involved in most air crashes and what types of aircraft cause the most fatalities. Top 10 aircraft types are shown in the graphs below. __Boeing 777-200__ have the most deaths and __PZL-Mielec AN-2__ has been involved in the most accidents in the past 10 years Interestingly, the A/C Type which causes hundreds of deaths are not among the types which are most frequently involved in accidents, except for __Lockheed C-130 Hercules__. One possible reason for this phenomenon is that __Boeing__ and __Airbus__ produce commercial airplanes that can contain hundreds of people and a handful of aircrashes can lead to hundreds of fatalities.
+
+```{r exploratory.by.type.plot, echo=FALSE}
+crash_by_type <- df_air_crash %>%
+  group_by(`A/C Type`) %>%
+  summarize(fatalities = sum(Fatalities), times = n()) %>%
+  gather(key = "Variable Name", value = "n", -`A/C Type`) %>%
+  group_by(`Variable Name`) %>%
+  mutate(rank = min_rank(desc(n))) %>%
+  filter(rank <= 10)
+
+ggplot(data = crash_by_type, mapping = aes(x = `A/C Type`, y = n)) + 
+  geom_bar(stat = "identity") + 
+  facet_wrap(~`Variable Name`, scales = "free") +
+  xlab("Aircraft Type") + ylab("Number") +
+  coord_flip() 
+```
+
+
+From the barplots below, we can see that nearly half of the accidents that occur during the landing phase. Though only 1/4 of the accidents happen during the flight, the fatalities caused in this phase are as many as that those caused during the landing phase. 
+
+When the plane is landing, it has lower speed and lower altitude. So, even the airplane crashes during the landing or approaching phase, the possibility of having surviors must be higher than the accident in the sky. !!(Should cite someone from the profession)
+
+```{r exploratory.by.phase.plot, echo=FALSE}
+crash_by_phase <- df_air_crash %>%
+  group_by(`Flight Phase`) %>%
+  summarize(fatalities = sum(Fatalities), times = n()) %>%
+  gather(key = "Variable Name", value = "n", -`Flight Phase`) %>%
+  group_by(`Variable Name`) %>%
+  mutate(rank = min_rank(desc(n)))
+
+ggplot(data = crash_by_phase, mapping = aes(x = `Flight Phase`, y = n)) + 
+  geom_bar(stat = "identity") + 
+  facet_wrap(~`Variable Name`, scales = "free") +
+  xlab("Flight Phase") + ylab("Number") + 
+  coord_flip() 
+```
+
+```{r exploratory.by.location.plot, echo=FALSE}
+# seems to be meaningless
+crash_by_location <- df_air_crash %>%
+  group_by(`Location`) %>%
+  summarize(fatalities = sum(Fatalities), times = n()) %>%
+  gather(key = "Variable Name", value = "n", -`Location`) %>%
+  group_by(`Variable Name`) %>%
+  mutate(rank = min_rank(desc(n))) %>%
+  filter(rank <= 5)
+
+#ggplot(data = crash_by_location, mapping = aes(x = `Location`, y = n)) + 
+#  geom_bar(stat = "identity") + 
+#  facet_wrap(~`Variable Name`, scales = "free") +
+#  xlab("Location") + ylab("Number") + 
+#  coord_flip() 
+```
+
+### Text Mining
+
+Text mining techniques are employed to see the major causes of air crashes. Naive term frequency and TF-IDF are both tried in this part.
+
+```{r text.count, echo=FALSE}
+# load the stop_words dataset, we'll remove the stop-words in the detain later.
+data("stop_words")
+
+words_air_crash <- df_air_crash %>%
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, Circumstances) %>%
+  unnest_tokens(word, Circumstances) %>% 
+  anti_join(stop_words, by="word")
+
+words_air_crash %>% group_by(word) %>% count() %>% arrange(desc(n))
+```
+
+```{r text.count.by.fatal, echo=FALSE}
+# load the stop_words dataset, we'll remove the stop-words in the detain later.
+data("stop_words")
+
+words_air_crash <- df_air_crash %>%
+  mutate(is_fatal = ifelse(Fatalities > 0, 1, 0)) %>%
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, Circumstances) %>%
+  unnest_tokens(word, Circumstances) %>% 
+  anti_join(stop_words, by="word")
+
+words_air_crash %>% group_by(is_fatal, word) %>% count() %>% arrange(is_fatal, desc(n))
+```
+
+```{r text.tf-idf, echo=FALSE}
+if_idf_air_crash <- df_air_crash %>%
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, Circumstances) %>%
+  unnest_tokens(word, Circumstances) %>%
+  group_by(Registration) %>%
+  count(word) %>%
+  bind_tf_idf(term = word, document = Registration, n = n) %>% 
+  arrange(desc(tf_idf))
+```
+
+```{r text.tf-idf.by.fatal, echo=FALSE}
+if_idf_air_crash_by_fatal <- df_air_crash %>%
+  mutate(is_fatal = ifelse(Fatalities > 0, 1, 0)) %>%
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, Circumstances) %>%
+  unnest_tokens(word, Circumstances) %>%
+  group_by(is_fatal) %>%
+  count(word) %>%
+  bind_tf_idf(term = word, document = is_fatal, n = n) %>% 
+  arrange(desc(is_fatal), desc(tf_idf)) 
 ```

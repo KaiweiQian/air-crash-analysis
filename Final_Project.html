@@ -193,7 +193,64 @@ $(document).ready(function () {
 
 <div id="data" class="section level3">
 <h3>Data</h3>
-<p>In this project, the Official WebAPI provided by Valve, the producer of DOTA2, is used. More details about the usage of this API can be found: <a href="https://wiki.teamfortress.com/wiki/WebAPI#Dota_2" class="uri">https://wiki.teamfortress.com/wiki/WebAPI#Dota_2</a>.</p>
+<p>The data used in this study is scraped from the Bureau of Aircraft Accidents Archives (<a href="http://www.baaa-acro.com/crash-archives" class="uri">http://www.baaa-acro.com/crash-archives</a>). The Bureau of Aircraft Accidents Archives (B3A) was established in Geneva in 1990 for the purpose to deal with all information related to aviation accidentology.</p>
+<p>Scraping involves two steps.</p>
+<p>First, <strong>read_html()</strong> and <strong>html_table()</strong> is used to get the table data, whose row names are Date, A/C Type, Location, Fatalities and Registration. If you visit their website, you’ll find that there is a plus sign at the end of each row of the table. Clicking on it leads you to the page that briefly summarizes the air crash. It provides us with the information such as Flight Phase and Circumstances. So, we also keep the hyperlinks to this page.</p>
+<p>In the second step, our spider visits the page that contains the brief summary of air crashes. We choose to keep the records of Flight Phase and Circumstances for further study. The Circumstances are used mainly by the text mining part of this project.</p>
+</div>
+<div id="exploratory-analysis" class="section level3">
+<h3>Exploratory Analysis</h3>
+<pre class="r"><code># read the data
+df_air_crash &lt;- read_csv(&quot;./Intermediate Results/air_accident_table_with_detail_2009-2019.csv&quot;)
+
+# convert the date from String to Date
+df_air_crash &lt;- df_air_crash %&gt;%
+  mutate(Date = mdy(Date), detail.url = NULL)
+# show the dataset
+glimpse(df_air_crash)</code></pre>
+<pre><code>## Observations: 1,368
+## Variables: 7
+## $ Date           &lt;date&gt; 2019-03-31, 2019-03-23, 2019-03-22, 2019-03-18...
+## $ `A/C Type`     &lt;chr&gt; &quot;Epic LT&quot;, &quot;Beechcraft 200 Super King Air&quot;, &quot;Ro...
+## $ Location       &lt;chr&gt; &quot;Egelsbach, Hesse&quot;, &quot;Matsieng, Kgatleng Distric...
+## $ Fatalities     &lt;dbl&gt; 3, 1, 0, 2, 1, 1, 157, 1, 14, 0, 0, 2, 3, 2, 1,...
+## $ Registration   &lt;chr&gt; &quot;RA-2151G&quot;, &quot;A2-MBM&quot;, &quot;N990PA&quot;, &quot;N4MH&quot;, &quot;N424TW...
+## $ `Flight Phase` &lt;chr&gt; &quot;Landing (descent or approach)&quot;, &quot;Flight&quot;, &quot;Lan...
+## $ Circumstances  &lt;chr&gt; &quot;While approaching Egelsbach runway 08 in good ...</code></pre>
+<p>As shown the table above, our dataset contains 1368 observations and 7 variables. The variables are Date, A/C Type, Location, Fatalities, Registration, Flight Phase, Circumstances.</p>
+</div>
+<div id="text-mining" class="section level3">
+<h3>Text Mining</h3>
+<pre><code>## # A tibble: 10,752 x 2
+## # Groups:   word [10,752]
+##    word          n
+##    &lt;chr&gt;     &lt;int&gt;
+##  1 aircraft   2789
+##  2 flight     1564
+##  3 pilot      1439
+##  4 airplane   1354
+##  5 runway     1318
+##  6 airport    1116
+##  7 crew       1010
+##  8 engine      932
+##  9 left        795
+## 10 occupants   678
+## # ... with 10,742 more rows</code></pre>
+<pre><code>## # A tibble: 13,791 x 3
+## # Groups:   is_fatal, word [13,791]
+##    is_fatal word         n
+##       &lt;dbl&gt; &lt;chr&gt;    &lt;int&gt;
+##  1        0 aircraft  1212
+##  2        0 runway     804
+##  3        0 pilot      529
+##  4        0 airplane   494
+##  5        0 landing    493
+##  6        0 flight     491
+##  7        0 crew       425
+##  8        0 airport    380
+##  9        0 left       372
+## 10        0 engine     364
+## # ... with 13,781 more rows</code></pre>
 </div>
 
 
