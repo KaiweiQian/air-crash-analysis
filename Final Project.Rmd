@@ -2,7 +2,7 @@
 title: "Final Project"
 author: "Kaiwei Qian"
 date: "2019/4/5"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -28,12 +28,11 @@ So, we also keep the hyperlinks to this page.
 In the second step, our spider visits the page that contains the brief summary of air crashes. We choose to keep the records of Flight Phase and Circumstances for further study. The Circumstances are used mainly by the text mining part of this project.
 
 ```{r get.air.crash.data, results='hide', eval=FALSE, echo=FALSE}
-# the url for the air accidents from 2009-01-01 to 2019-04-01
-url.air.accident <- "http://www.baaa-acro.com/crash-archives?created=2009-01-01&created_1=2019-04-01&field_crash_region_target_id=All&field_crash_country_target_id=&field_crash_registration_target_id=&field_crash_aircraft_target_id=&field_crash_operator_target_id=&field_crash_cause_target_id=All&field_crash_zone_target_id=&field_crash_site_type_target_id=All&field_crash_phase_type_target_id=All&field_crash_flight_type_target_id=All&field_crash_survivors_value=All&field_crash_city_target_id="
+# the url for the air accidents from 2009-01-01 to 2018-12-31
+url.air.accident <- "http://www.baaa-acro.com/crash-archives?created=2009-01-01&created_1=2018-12-31&field_crash_region_target_id=All&field_crash_country_target_id=&field_crash_registration_target_id=&field_crash_aircraft_target_id=&field_crash_operator_target_id=&field_crash_cause_target_id=All&field_crash_zone_target_id=&field_crash_site_type_target_id=All&field_crash_phase_type_target_id=All&field_crash_flight_type_target_id=All&field_crash_survivors_value=All&field_crash_city_target_id="
 
 tbl_air_accident_raw <- NULL
 # we know that it has 14 pages.
-page = 0
 for(page in 0:13) {
   tmp.url <- paste(url.air.accident, "&page=", page, sep="")
   # Find the node contain the table
@@ -53,46 +52,108 @@ for(page in 0:13) {
 }
 
 # save this dataframe to csv.file
-write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_2009-2019.csv")
+write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_2009-2018.csv")
 
 rm(list=ls()); gc()
 ```
 
 
 ```{r get.air.crash.detail, results='hide', eval=FALSE, echo=FALSE}
-tbl_air_accident_raw <- read_csv("./Intermediate Results/air_accident_table_2009-2019.csv")
+tbl_air_accident_raw <- read_csv("./Intermediate Results/air_accident_table_2009-2018.csv")
 
 detail.url <- tbl_air_accident_raw$detail.url
 
 tbl_air_accident_raw$`Flight Phase` = ""
 tbl_air_accident_raw$`Circumstances` = ""
+tbl_air_accident_raw$`Flight Type` = ""
+tbl_air_accident_raw$`Site` = ""
+tbl_air_accident_raw$`Probable cause` = ""
 
 # this loop can be very time-consuming, I'd recommend you don't run it.
 for(i in 1:length(detail.url)) {
-  # print(i)
+  print(i)
   tmp.url <- detail.url[i]
   tmp.html <- read_html(tmp.url)
-  
+  # save Flight Phase
   tbl_air_accident_raw$`Flight Phase`[i] <- tmp.html %>%
     html_node(xpath = '/html/body/div[1]/div[3]/div/section/div[2]/article/div/div[2]/div[@class="crash-flight-phase"]/a/div') %>%
     html_text()
-    
-  tbl_air_accident_raw$`Circumstances`[i] <- tmp.html %>%
-    html_node(xpath = '/html/body/div[1]/div[3]/div/section/div[2]/article/div/div[2]/div[@class="crash-circumstances"]/div') %>%
+  # Flight Type
+  tbl_air_accident_raw$`Flight Type`[i] <- tmp.html %>%
+    html_node(xpath = '//div[@class="crash-flight-type"]/a/div') %>%
     html_text()
+  # Site
+  tbl_air_accident_raw$`Site`[i] <- tmp.html %>%
+    html_node(xpath = '//div[@class="crash-site"]/a/div') %>%
+    html_text()
+  # set the Circumstance and Probable Cause
+  tmp_circum_and_cause <- tmp.html %>%
+    html_nodes(xpath = '//div[@class="crash-circumstances"]/div') %>%
+    html_text()
+  tmp_circum <- tmp_circum_and_cause[1]
+  
+  if(length(tmp_circum_and_cause) == 2) {
+    tmp_cause <- tmp_circum_and_cause[2]
+  } else tmp_cause = ""
+  # Circumstances
+  tbl_air_accident_raw$`Circumstances`[i] <- tmp_circum
+  # Probable cause
+  tbl_air_accident_raw$`Probable cause`[i] <- tmp_cause
 }
 
 # save this dataframe to csv.file
-write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_with_detail_2009-2019.csv")
+write_csv(tbl_air_accident_raw, path = "./Intermediate Results/air_accident_table_with_detail_2009-2018.csv")
 rm(list=ls()); gc()
 # Save it as an intermediate result.
+```
+
+```{r get.num.of.flight, results='hide', eval=FALSE, echo=FALSE}
+# If this links give you "- -", you can just try another time...
+num.of.flight.url <- "https://www.statista.com/statistics/564769/airline-industry-number-of-flights/"
+tbl_num_of_flight <- num.of.flight.url %>%
+  read_html() %>%
+  html_node(xpath = '//table') %>%
+  html_table()
+# change the variable name
+names(tbl_num_of_flight) <- c("year", "number of flights")
+
+tbl_num_of_flight <- tbl_num_of_flight %>%
+  mutate(`number of flights` = `number of flights` * 1e+6,
+         year = as.numeric(str_extract(year, '\\d{4}'))) %>%
+  filter(year >= 2009 & year <= 2018)
+# save 
+write_csv(tbl_num_of_flight, path = "./Intermediate Results/global_num_of_flights_2009-2018.csv")
+rm(list=ls()); gc()
+```
+
+```{r get.num.of.passenger, results='hide', eval=FALSE, echo=FALSE}
+# If this links give you "- -", you can just try another time...
+num.of.passenger.url <- "https://www.statista.com/statistics/564717/airline-industry-passenger-traffic-globally/"
+tbl_num_of_passenger <- num.of.passenger.url %>%
+  read_html() %>%
+  html_node(xpath = '//table') %>%
+  html_table()
+# change the variable name
+names(tbl_num_of_passenger) <- c("year", "number of passengers")
+
+tbl_num_of_passenger <- tbl_num_of_passenger %>%
+  mutate(`number of passengers` = (`number of passengers` %>% 
+                                     str_remove_all(pattern = ",") %>%
+                                     as.numeric() * 1e+6), 
+         year = as.numeric(str_extract(year, '\\d{4}'))) %>%
+  filter(year >= 2009 & year <= 2018)
+# save 
+write_csv(tbl_num_of_passenger, path = "./Intermediate Results/global_num_of_passengers_2009-2018.csv")
+rm(list=ls()); gc()
 ```
 
 ### Exploratory Analysis
 
 ```{r exploratory.read.data, message=FALSE, echo=FALSE}
 # read the data
-df_air_crash <- read_csv("./Intermediate Results/air_accident_table_with_detail_2009-2019.csv")
+df_air_crash <- read_csv("./Intermediate Results/air_accident_table_with_detail_2009-2018.csv")
+df_n_flights <- read_csv("./Intermediate Results/global_num_of_flights_2009-2018.csv")
+df_n_passengers <- read_csv("./Intermediate Results/global_num_of_passengers_2009-2018.csv")
 
 # convert the date from String to Date and remove the column of detail.url
 df_air_crash <- df_air_crash %>%
@@ -167,11 +228,11 @@ Text mining techniques are employed to see the major causes of air crashes. Naiv
 data("stop_words")
 
 words_air_crash <- df_air_crash %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, Circumstances) %>%
-  unnest_tokens(word, Circumstances) %>% 
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, `Probable cause`) %>%
+  unnest_tokens(word, `Probable cause`) %>% 
   anti_join(stop_words, by="word")
 
-words_air_crash %>% group_by(word) %>% count() %>% arrange(desc(n))
+# words_air_crash %>% group_by(word) %>% count() %>% arrange(desc(n))
 ```
 
 ```{r text.count.by.fatal, echo=FALSE}
@@ -180,17 +241,17 @@ data("stop_words")
 
 words_air_crash <- df_air_crash %>%
   mutate(is_fatal = ifelse(Fatalities > 0, 1, 0)) %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, Circumstances) %>%
-  unnest_tokens(word, Circumstances) %>% 
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, `Probable cause`) %>%
+  unnest_tokens(word, `Probable cause`) %>% 
   anti_join(stop_words, by="word")
 
-words_air_crash %>% group_by(is_fatal, word) %>% count() %>% arrange(is_fatal, desc(n))
+# words_air_crash %>% group_by(is_fatal, word) %>% count() %>% arrange(is_fatal, desc(n))
 ```
 
 ```{r text.tf-idf, echo=FALSE}
 if_idf_air_crash <- df_air_crash %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, Circumstances) %>%
-  unnest_tokens(word, Circumstances) %>%
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, `Probable cause`) %>%
+  unnest_tokens(word, `Probable cause`) %>%
   group_by(Registration) %>%
   count(word) %>%
   bind_tf_idf(term = word, document = Registration, n = n) %>% 
@@ -200,8 +261,8 @@ if_idf_air_crash <- df_air_crash %>%
 ```{r text.tf-idf.by.fatal, echo=FALSE}
 if_idf_air_crash_by_fatal <- df_air_crash %>%
   mutate(is_fatal = ifelse(Fatalities > 0, 1, 0)) %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, Circumstances) %>%
-  unnest_tokens(word, Circumstances) %>%
+  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, `Probable cause`) %>%
+  unnest_tokens(word, `Probable cause`) %>%
   group_by(is_fatal) %>%
   count(word) %>%
   bind_tf_idf(term = word, document = is_fatal, n = n) %>% 
