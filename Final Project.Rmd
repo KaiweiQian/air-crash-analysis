@@ -1,8 +1,10 @@
 ---
-title: "Final Project"
+title: "Aircrafts are becoming safer: An analysis of air crashes and flight safety"
 author: "Kaiwei Qian"
-date: "2019/4/5"
-output: pdf_document
+date: "2019/5/4"
+output: 
+  pdf_document:
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -16,16 +18,13 @@ library(tidytext)
 library(lubridate)
 ```
 
-### Data
+# Introduction
 
-The data used in this study is scraped from the Bureau of Aircraft Accidents Archives (http://www.baaa-acro.com/crash-archives) for the past 10 years (2009-2019). The Bureau of Aircraft Accidents Archives (B3A) was established in Geneva in 1990 for the purpose to deal with all information related to aviation accidentology.
+There are 6 sections in this report. Data and the ways how they are collected from Internet are described in Section 2. Exploratory analysis is performed in Section 3. In Section 4, the probability of being involved in an air accident is studied for the past 10 years (2009-2018), followed by Section 5, where text mining techniques are tried to extract the keywords from the cause of air accidents. The last section gives the conclusion of the project.
 
-Scraping involves two steps.
+# Data
 
-First, __read_html()__ and __html_table()__ is used to get the table data, whose row names are Date, A/C Type, Location, Fatalities and Registration. If you visit their website, you'll find that there is a plus sign at the end of each row of the table. Clicking on it leads you to the page that briefly summarizes the air crash. It provides us with the information such as Flight Phase and Circumstances.
-So, we also keep the hyperlinks to this page.
-
-In the second step, our spider visits the page that contains the brief summary of air crashes. We choose to keep the records of Flight Phase and Circumstances for further study. The Circumstances are used mainly by the text mining part of this project.
+## Aircraft accidents dataset
 
 ```{r get.air.crash.data, results='hide', eval=FALSE, echo=FALSE}
 # the url for the air accidents from 2009-01-01 to 2018-12-31
@@ -107,9 +106,56 @@ rm(list=ls()); gc()
 # Save it as an intermediate result.
 ```
 
+The data used in this study is scraped from the __Bureau of Aircraft Accidents Archives__ (http://www.baaa-acro.com/crash-archives) for the past 10 years (2009-2018). The Bureau of Aircraft Accidents Archives (BAAA) was established in Geneva in 1990 for the purpose to deal with all information related to aviation accidentology.
+
+Scraping involves two steps.
+
+First, After __read_html()__ reads the string-type HTML from the response, __html_node(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table')__ locates the table that contains the information of the air accidents, such as Date, A/C Type, Location, Fatalities and Registration. Detailed explanation if these headings are described in Table 1. 
+
+If you visit their website, you'll find that there is a plus sign at the end of each row of the table. Clicking on it leads you to the page that briefly summarizes the air crash. It provides more detailed information, such as Flight Phase and Circumstances. So, I choose to keep the hyperlinks to this page. __html_nodes(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table/tbody/tr/td[8]/a/@href')__ locates the column of the hyperlinks belonging to and __html_text()__ reads the data from that column.
+
+In the second step, the spider visits each page that contains a brief summary of air crashes. I choose to keep the records of Flight Phase, Flight Type, Site, Circumstances and Probable Causes (if exists) for further study. Circumstances and Probable Causes are mainly used to support the text mining part of this project. XPath is used to read the data from the HTML.
+
+Note that instead of air crashes, this dataset include all the records of air accidents, which means the plane may not be necessarily hit land or water and be damaged. For example, some mechanical problems during the flight are also deemed as air accidents.
+
+```{r read.air.crash.data, message=FALSE, echo=FALSE}
+# read the data
+df_air_crash <- read_csv("./Intermediate Results/air_accident_table_with_detail_2009-2018.csv")
+
+# convert the date from String to Date and remove the column of detail.url
+df_air_crash <- df_air_crash %>%
+  mutate(Date = mdy(Date), detail.url = NULL)
+```
+
+```{r air.crash.description, echo=FALSE}
+des_air_crash <- tibble(`Variable Name` = names(df_air_crash),
+                        `Data Type` = sapply(df_air_crash, class),
+                        Description = "")
+des_air_crash$Description[1] = "The date when the accident occurred"
+des_air_crash$Description[2] = "The type of the aircraft"
+des_air_crash$Description[3] = "The location where the accident occurred"
+des_air_crash$Description[4] = "Number of deaths caused by the accident"
+des_air_crash$Description[5] = "A unique ID for the airplane"
+des_air_crash$Description[6] = "Flight phase during which the accident occurred"
+des_air_crash$Description[7] = "A breif description of the circumstances where the accident occurred"
+des_air_crash$Description[8] = "The type of this flight; can be private, commercial and so on"
+des_air_crash$Description[9] = "Description of the location where the air crash occurred"
+des_air_crash$Description[10] = "Possible causes given by the investigation by NTSB"
+
+knitr::kable(des_air_crash, booktabs = TRUE, caption = "Description of the variables in BAAA Air Accidents dataset.")
+```
+
+## Flight statistics
+
+The flight statistics dataset is scraped from __Statista__. The number of flights performed by the global airline industry from 2009 to 2018 and the number of scheduled passengers boarded by the global airline inudstry from 2009 to 2018 are collected from https://www.statista.com/statistics/564769/airline-industry-number-of-flights and https://www.statista.com/statistics/564717/airline-industry-passenger-traffic-globally, respectively. 
+
+In each of websites mentioned above, there are two tables, which contain the number of scheduled commercial flights and the number of passengers and the number of scheduled passengers boarded from 2004 to 2019, respectively. For each of the websites, __html_node(xpath = '//table')__ locates the table, and __html_table()__ reads the table from its HTML structure. 
+
+Only the records from 2009 to 2018 are used in this project in order to keep them consistent with the air accidents dataset in terms of time range. Moreover, the numbers from __Statista__ are only for the commercial flights while the air accidents dataset also contain the records for private, cargo and other flights. So, it's essential to keep the difference of these two data sources in mind and avoid causing confusion.
+
 ```{r get.num.of.flight, results='hide', eval=FALSE, echo=FALSE}
 # If this links give you "- -", you can just try another time...
-num.of.flight.url <- "https://www.statista.com/statistics/564769/airline-industry-number-of-flights/"
+num.of.flight.url <- "https://www.statista.com/statistics/564769/airline-industry-number-of-flights"
 tbl_num_of_flight <- num.of.flight.url %>%
   read_html() %>%
   html_node(xpath = '//table') %>%
@@ -128,7 +174,7 @@ rm(list=ls()); gc()
 
 ```{r get.num.of.passenger, results='hide', eval=FALSE, echo=FALSE}
 # If this links give you "- -", you can just try another time...
-num.of.passenger.url <- "https://www.statista.com/statistics/564717/airline-industry-passenger-traffic-globally/"
+num.of.passenger.url <- "https://www.statista.com/statistics/564717/airline-industry-passenger-traffic-globally"
 tbl_num_of_passenger <- num.of.passenger.url %>%
   read_html() %>%
   html_node(xpath = '//table') %>%
@@ -147,26 +193,19 @@ write_csv(tbl_num_of_passenger, path = "./Intermediate Results/global_num_of_pas
 rm(list=ls()); gc()
 ```
 
-### Exploratory Analysis
+# Exploratory Analysis
 
-```{r exploratory.read.data, message=FALSE, echo=FALSE}
-# read the data
-df_air_crash <- read_csv("./Intermediate Results/air_accident_table_with_detail_2009-2018.csv")
-df_n_flights <- read_csv("./Intermediate Results/global_num_of_flights_2009-2018.csv")
-df_n_passengers <- read_csv("./Intermediate Results/global_num_of_passengers_2009-2018.csv")
+## Aircraft Type
 
-# convert the date from String to Date and remove the column of detail.url
-df_air_crash <- df_air_crash %>%
-  mutate(Date = mdy(Date), detail.url = NULL)
-# glimpse at the dataset
-glimpse(df_air_crash)
-```
+As shown in Table 1, the air accidents dataset contains `r dim(df_air_crash)[1]` observations and `r dim(df_air_crash)[2]` variables. The `r dim(df_air_crash)[2]` variables are `r paste(names(df_air_crash), collapse = ", ")`.
 
-As shown the table above, our dataset contains `r dim(df_air_crash)[1]` observations and `r dim(df_air_crash)[2]` variables. The `r dim(df_air_crash)[2]` variables are `r paste(names(df_air_crash), collapse = ", ")`.
+Barplots are employed to see what types of aircraft is involved in most air accidents and what types of aircraft cause the most fatalities. After grouping the data by __A/C Type__, I sum the __Fatalities__ and count the number of air accidents for each type of aircraft. __gather()__ and __facet_wrap()__ are used to generate these two plots. 
 
-Barplots are employed to see what types of aircraft is involved in most air crashes and what types of aircraft cause the most fatalities. Top 10 aircraft types are shown in the graphs below. __Boeing 777-200__ have the most deaths and __PZL-Mielec AN-2__ has been involved in the most accidents in the past 10 years Interestingly, the A/C Type which causes hundreds of deaths are not among the types which are most frequently involved in accidents, except for __Lockheed C-130 Hercules__. One possible reason for this phenomenon is that __Boeing__ and __Airbus__ produce commercial airplanes that can contain hundreds of people and a handful of aircrashes can lead to hundreds of fatalities.
+Top 10 aircraft types are shown in the graphs below. __Boeing 777-200__ have the most deaths and __PZL-Mielec AN-2__ has been involved in the most accidents in the past 10 years. Interestingly, the A/C Type which causes hundreds of deaths are not among the types which are most frequently involved in accidents, except for __Lockheed C-130 Hercules__. One possible reason for this phenomenon is that __Boeing__ and __Airbus__ produce commercial airplanes that can contain hundreds of people and a handful of fatal air crashes can lead to hundreds of fatalities. 
 
-```{r exploratory.by.type.plot, echo=FALSE}
+In conclusion, the capacity of different aircrafts must be taken in to consideration when talking about the safety. 
+
+```{r exploratory.by.type.plot, echo=FALSE, fig.cap = "Frequency and Fatalities of Air Accidents by Aircraft Type."}
 crash_by_type <- df_air_crash %>%
   group_by(`A/C Type`) %>%
   summarize(fatalities = sum(Fatalities), times = n()) %>%
@@ -178,16 +217,18 @@ crash_by_type <- df_air_crash %>%
 ggplot(data = crash_by_type, mapping = aes(x = `A/C Type`, y = n)) + 
   geom_bar(stat = "identity") + 
   facet_wrap(~`Variable Name`, scales = "free", dir = "v") +
-  xlab("Aircraft Type") + ylab("Number") +
+  xlab("aircraft type") + ylab("number") +
   coord_flip() 
 ```
 
 
-From the barplots below, we can see that nearly half of the accidents that occur during the landing phase. Though only 1/4 of the accidents happen during the flight, the fatalities caused in this phase are as many as that those caused during the landing phase. 
+## Flight Phase
 
-When the plane is landing, it has lower speed and lower altitude. So, even the airplane crashes during the landing or approaching phase, the possibility of having surviors must be higher than the accident in the sky. !!(Should cite someone from the profession)
+Barplots in Figure 2 shows that nearly half of the accidents that occur during the landing phase. Though only 1/4 of the accidents happen during the flight, the fatalities caused in this phase are as many as that those caused during the landing phase. 
 
-```{r exploratory.by.phase.plot, echo=FALSE}
+When the plane is landing, it has lower speed and lower altitude. So, even the airplane accidents during the landing or approaching phase occur more often than during flight, the chance of surviving must be higher than the accident in the sky. What's more, landing or approaching means that the plane is near an airport, where the people are ready for any emergency situation. 
+
+```{r exploratory.by.phase.plot, echo=FALSE, fig.cap = "Frequency and Fatalities of Air Accidents by Flight Phase."}
 crash_by_phase <- df_air_crash %>%
   group_by(`Flight Phase`) %>%
   summarize(fatalities = sum(Fatalities), times = n()) %>%
@@ -198,9 +239,14 @@ crash_by_phase <- df_air_crash %>%
 ggplot(data = crash_by_phase, mapping = aes(x = `Flight Phase`, y = n)) + 
   geom_bar(stat = "identity") + 
   facet_wrap(~`Variable Name`, scales = "free", dir = "v") +
-  xlab("Flight Phase") + ylab("Number") + 
+  xlab("flight Phase") + ylab("number") + 
   coord_flip() 
 ```
+
+
+## Location
+
+The number of air crashes and fatalities by location is computed in this part. 
 
 ```{r exploratory.by.location.plot, echo=FALSE}
 # seems to be meaningless
@@ -210,53 +256,111 @@ crash_by_location <- df_air_crash %>%
   gather(key = "Variable Name", value = "n", -`Location`) %>%
   group_by(`Variable Name`) %>%
   mutate(rank = min_rank(desc(n))) %>%
-  filter(rank <= 5)
+  filter(rank <= 10)
 
 #ggplot(data = crash_by_location, mapping = aes(x = `Location`, y = n)) + 
-#  geom_bar(stat = "identity") + 
-#  facet_wrap(~`Variable Name`, scales = "free") +
-#  xlab("Location") + ylab("Number") + 
-#  coord_flip() 
+  #geom_bar(stat = "identity") + 
+  #facet_wrap(~`Variable Name`, scales = "free") +
+  #xlab("Location") + ylab("Number") + coord_flip()
 ```
 
-### Text Mining
+# Time series
 
-Text mining techniques are employed to see the major causes of air crashes. Naive term frequency and TF-IDF are both tried in this part.
+```{r show.ts.crash, echo=FALSE, message = FALSE, fig.cap="Number of Air Accidents and Fatalities per Year"}
+crash_by_year <- df_air_crash %>%
+  mutate(Date = year(Date)) %>%
+  group_by(Date) %>%
+  summarize(fatalities = sum(Fatalities), times = n()) %>%
+  gather(key = "Variable Name", value = "n", -`Date`) 
+
+ggplot(data = crash_by_year, mapping = aes(x = `Date`, y = n)) + 
+  geom_point() + geom_line() +
+  facet_wrap(~`Variable Name`, scales = "free", dir = 'v') +
+  xlab("year") + ylab("number") 
+```
+
+```{r show.ts, echo=FALSE, message = FALSE, fig.cap="Number of Commercial Flights and Passengers per Year."}
+df_n_flights <- read_csv("./Intermediate Results/global_num_of_flights_2009-2018.csv")
+df_n_passengers <- read_csv("./Intermediate Results/global_num_of_passengers_2009-2018.csv")
+
+df_flight_stat <- df_n_flights %>%
+  left_join(df_n_passengers, by = "year") %>%
+  gather(key = "variable", value = "n", -year)
+
+ggplot(data = df_flight_stat, mapping = aes(x = year, y = n/1000000)) + 
+  geom_point() + geom_line() + facet_wrap(~variable, scale = "free", dir = 'v') + ylab("Number in Million")
+```
+
+In this section, records are grouped by year, and I'm interested in the trend of the fatalities and number of air accidents from 2009 to 2018. In addition, the number of scheduled flights and the number of passengers boarded are used to normalize the air accidents dataset in order to achieve fair evalution of flight safety.
+
+Figure 3 indicates that the fatalities related to air accidents fluctuate around 800 per year, and the number of air accidents has deacreased from 160 to 110 from 2009 to 2018. The problem is whether fluctuating fatalities caused by air crashes each year indicates no improvement in flight safety.
+
+Figure 4 shows that the number of commercial flights scheduled and number of passengers each year has been increasing in the past ten years. Therefore, it's more appropriate to evaluate the flight safety by the ratio of fatalities to the number of passengers aboard or the __fatal accident rate__, which is the ratio of number of fatal air accidents to the total number of flights. 
+
+Note that the data of the number of flights and passengers are only for commercial flights. Therefore, only the air accidents with the flight type of "Scheduled Revenue Flight" can be used to calculate those ratios for commercial flights.
+
+## fatalities per passengers boarded
+
+```{r show.ts.fata.per.pass, echo=FALSE, message = FALSE, fig.cap="Fatalities per Passengers Boarded per Year."}
+fata_per_pass <- df_air_crash %>%
+  filter(`Flight Type` == "Scheduled Revenue Flight") %>%
+  mutate(year = year(Date)) %>%
+  group_by(year) %>%
+  summarize(fatalities = sum(Fatalities)) %>%
+  left_join(df_n_passengers, by = "year") %>%
+  mutate(ratio = fatalities/`number of passengers`*1e+6)
+
+ggplot(data = fata_per_pass, mapping = aes(x = year, y = ratio)) + 
+  geom_point() + geom_line() + ylab("fatalities per one million passengers") + xlab("year")
+```
+
+Figure 5 shows a downward trend for the number of victims per one million passengers for commercial flights. 2014 and 2018 are two abnormal years because the number of fatalities do not follow the overall trend for these two years. In 2018, there were two major air crashed that caused more than 300 deaths. One of them is the Boeing 737 MAX 8 that crashed in Jakarta and killed 189 people. In 2014, there were three air crashes that involved Boeing and Airbus. These three major accidents killed 162, 298 and 239, respectively.
+
+## fatal accident rate
+
+```{r show.ts.fata.acc.rate, echo=FALSE, message = FALSE, fig.cap="Fatal Accident Rate per Year."}
+fata_acc_rate <- df_air_crash %>%
+  filter(Fatalities > 0 & `Flight Type` == "Scheduled Revenue Flight") %>%
+  mutate(year = year(Date)) %>%
+  group_by(year) %>%
+  count() %>%
+  left_join(df_n_flights, by = "year") %>%
+  mutate(ratio = n/`number of flights`*1e+6)
+
+ggplot(data = fata_acc_rate, mapping = aes(x = year, y = ratio)) + 
+  geom_point() + geom_line() + ylab("fatal accidents per one million flights") + xlab("year")
+```
+
+Figure 6 indicates that the number of air accidents that caused deaths per one million flights has been decreasing in the past ten years. However, the decreasing fatal accidents rate does not necessarily mean that the number of victims related to air crash also goes down. It's clear that Figure 6 fails to capture the extreme high fatalities in 2014 and 2018. Though the number of crashes was small in 2014 and 2018, those accidents involved high-capacity commercial airplanes. 
+
+In conclusion, except for some extreme years, the commerical flights have become safer over the past ten years. In addition, the number of fatal accidents keeps going down. Air crashes that involve high-capacity planes, such as Boeing and Airbus, lead to significant increase in the fatalities.
+
+# Text Mining
+
+BAAA provides information of the circumstances when the air accident happened and there would be one section called "Probablie Causes" if the investigation was finished. I'm interested in the key factors that lead to a fatal air accident and try to use text mining techniques to find them. Naive term frequency and TF-IDF are both tried and the results are compared in this section.
+
+## Term Frequency
+
+Term frequency for a certain word is defined as the number of appearance in all the __Probable cause__s. 
 
 ```{r text.count, echo=FALSE}
 # load the stop_words dataset, we'll remove the stop-words in the detain later.
 data("stop_words")
 
 words_air_crash <- df_air_crash %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, `Probable cause`) %>%
+  filter(Fatalities > 0) %>%
+  select(`Probable cause`) %>%
   unnest_tokens(word, `Probable cause`) %>% 
-  anti_join(stop_words, by="word")
+  anti_join(stop_words, by="word") %>%
+  filter(!is.na(word)) %>%
+  group_by(word) %>%
+  count() %>%
+  arrange(desc(n))
 
 # words_air_crash %>% group_by(word) %>% count() %>% arrange(desc(n))
 ```
 
-```{r text.count.by.fatal, echo=FALSE}
-# load the stop_words dataset, we'll remove the stop-words in the detain later.
-data("stop_words")
-
-words_air_crash <- df_air_crash %>%
-  mutate(is_fatal = ifelse(Fatalities > 0, 1, 0)) %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, `Probable cause`) %>%
-  unnest_tokens(word, `Probable cause`) %>% 
-  anti_join(stop_words, by="word")
-
-# words_air_crash %>% group_by(is_fatal, word) %>% count() %>% arrange(is_fatal, desc(n))
-```
-
-```{r text.tf-idf, echo=FALSE}
-if_idf_air_crash <- df_air_crash %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, `Probable cause`) %>%
-  unnest_tokens(word, `Probable cause`) %>%
-  group_by(Registration) %>%
-  count(word) %>%
-  bind_tf_idf(term = word, document = Registration, n = n) %>% 
-  arrange(desc(tf_idf))
-```
+## TF-IDF
 
 ```{r text.tf-idf.by.fatal, echo=FALSE}
 if_idf_air_crash_by_fatal <- df_air_crash %>%
@@ -268,3 +372,5 @@ if_idf_air_crash_by_fatal <- df_air_crash %>%
   bind_tf_idf(term = word, document = is_fatal, n = n) %>% 
   arrange(desc(is_fatal), desc(tf_idf)) 
 ```
+
+# Conclusion
