@@ -22,7 +22,7 @@ library(wordcloud)
 
 # Introduction
 
-On March 4, a Boeing 737 MAX 8 crashed during the climb killing 157 people without survivor. 5 months before, an aircraft, still a Boeing 737 MAX 8, dove into the sea and crashed, killing all the 189 people on board. These two air accidents are reported to be related to the improper activation of Maneuvering Characteristics Augmentation System (MCAS). Recent fatal air crashes arouse my concern for aviation safety, especially for commercial flights. Air accidents dataset and statistics of commercial flights are utilized to analysze the trend of flight safety. In addition, text mining techniques are employed to detect the factors that are mostly likely to induce fatal air accidents.
+On March 4, a Boeing 737 MAX 8 crashed during the climb killing 157 people without survivor. 5 months before, an aircraft, still a Boeing 737 MAX 8, dove into the sea and crashed, killing all the 189 people on board. These two air accidents are reported to be related to the flawed Maneuvering Characteristics Augmentation System (MCAS) [@nyt]. Recent fatal air crashes arouse my concern for aviation safety, especially for commercial flights. Air accidents dataset and statistics of commercial flights are utilized to analysze the trend of flight safety. In addition, text mining techniques are employed to detect the factors that are mostly likely to induce fatal air accidents.
 
 There are 6 sections in this report. Data and the ways how they are collected from Internet are described in Section 2. Exploratory analysis is performed in Section 3. In Section 4, the trend of flight safety is studied for the past 10 years (2009-2018), followed by Section 5, where text mining techniques are tried to extract the keywords from the cause of air accidents. The last section gives the conclusion of the project.
 
@@ -404,6 +404,7 @@ single_word_acc <- desc_accident %>%
 # set the color of the word cloud
 pal = brewer.pal(8,"Pastel2")
 # plot the word cloud
+set.seed(1)
 single_word_acc %>%
   with(wordcloud(word, n, max.words = nrow(single_word_acc), colors = pal))
 ```
@@ -433,6 +434,7 @@ bigram_acc <- desc_accident %>%
   # filter(rank <= 30) %>%
   arrange(rank)
 # plot the word cloud
+set.seed(1)
 bigram_acc %>%
   with(wordcloud(bigram, n, max.words = 15, colors = pal))
 ```
@@ -469,7 +471,7 @@ Among the top 20, the phrases that make sense include __poor weather conditions_
 
 Some of these trigrams can be interpreted as follows:
 
-__poor weather conditions__ ranks the first. It is consistent with our results in __Bigram__. __controlled flight terrain__ means controlled flight into terrain, or __CFIT__, which occurs "when an airworthy aircraft under the complete control of the pilot is inadvertently flown into terrain, water, or an obstacle". In addition, __instrument meteorological conditions__ indicates low visibility. __post impact fire__ means the fire after air crashes. Moreover, __auto feather unit__ implies low engine power. These are all factors that can induce fatal air accidents.
+__poor weather conditions__ ranks the first. It is consistent with our results in __Bigram__. __controlled flight terrain__ means controlled flight into terrain, or __CFIT__, which occurs "when an airworthy aircraft under the complete control of the pilot is inadvertently flown into terrain, water, or an obstacle" [@sky]. In addition, __instrument meteorological conditions__ indicates low visibility. __post impact fire__ means the fire after air crashes. Moreover, __auto feather unit__ implies low engine power. These are all factors that can induce fatal air accidents.
 
 For the details, please see: https://www.skybrary.aero/index.php/Main_Page#operational-issues.
 
@@ -505,9 +507,13 @@ Since I'm interested in the determinant factors for fatal air accidents, I split
 
 # Conclusion
 
-In the past 10 years, the aviation safety has been improved in terms of the __fatalities per one million passengers__ and __fatal accident rate__. However, __fatalities per one million passengers__ is found to be highly correlated with the number of accidents that involve high-capacity commercial airplanes. Therefore, leading aircraft manufacturers, like Boeing and Airbus, must shoulder more responsibilty for their customers, such as passengers, airlines and so on. Factors that are likely to cause fatal air accidents, such as __poor weather conditions__, __controlled flight into terrain__ and __post impact fire__, are detected using text mining techniques. Though it's clear that these terms indicate dangerous situations, the true reasons still remain unveiled. More advanced techniques are required to check which factors are the critical for these accidents, human facotr, technical failure, or others. 
+In the past 10 years, the aviation safety has been improved in terms of the __fatalities per one million passengers__ and __fatal accident rate__. However, __fatalities per one million passengers__ is found to be highly correlated with the number of accidents that involve high-capacity commercial airplanes. Therefore, leading aircraft manufacturers, like Boeing and Airbus, must shoulder more responsibilty for their customers, such as passengers, airlines and so on. Factors that are likely to cause fatal air accidents, such as __poor weather conditions__, __controlled flight into terrain__ and __post impact fire__, are detected using text mining techniques. Though it's clear that these terms indicate dangerous situations, the true causes still remain unveiled. More advanced text mining techniques are required to check which factors are critical for these fatal accidents, human factor, technical failure, or others. 
 
 # References
 
+---
+nocite: |
+  @iata1, @iata2, @baaa
+...
 
 
