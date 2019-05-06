@@ -1,5 +1,5 @@
 ---
-title: "Aircrafts are becoming safer: An analysis of air crashes and flight safety"
+title: "Trend of Flight Safety and Detection of Causes of Fatal Air Accidents Using Text Mining Techniques"
 author: "Kaiwei Qian"
 date: "2019/5/4"
 output: 
@@ -16,11 +16,12 @@ library(RCurl)
 library(jsonlite)
 library(tidytext)
 library(lubridate)
+library(wordcloud)
 ```
 
 # Introduction
 
-There are 6 sections in this report. Data and the ways how they are collected from Internet are described in Section 2. Exploratory analysis is performed in Section 3. In Section 4, the probability of being involved in an air accident is studied for the past 10 years (2009-2018), followed by Section 5, where text mining techniques are tried to extract the keywords from the cause of air accidents. The last section gives the conclusion of the project.
+There are 6 sections in this report. Data and the ways how they are collected from Internet are described in Section 2. Exploratory analysis is performed in Section 3. In Section 4, the trend of flight safety is studied for the past 10 years (2009-2018), followed by Section 5, where text mining techniques are tried to extract the keywords from the cause of air accidents. The last section gives the conclusion of the project.
 
 # Data
 
@@ -110,7 +111,7 @@ The data used in this study is scraped from the __Bureau of Aircraft Accidents A
 
 Scraping involves two steps.
 
-First, After __read_html()__ reads the string-type HTML from the response, __html_node(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table')__ locates the table that contains the information of the air accidents, such as Date, A/C Type, Location, Fatalities and Registration. Detailed explanation if these headings are described in Table 1. 
+First, After __read_html()__ reads the string-type HTML from the response, __html_node(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table')__ locates the table that contains the information of the air accidents, such as Date, A/C Type, Location, Fatalities and Registration. Detailed explanation of these variables are shown in Table 1. 
 
 If you visit their website, you'll find that there is a plus sign at the end of each row of the table. Clicking on it leads you to the page that briefly summarizes the air crash. It provides more detailed information, such as Flight Phase and Circumstances. So, I choose to keep the hyperlinks to this page. __html_nodes(xpath = '/html/body/div[1]/div[4]/div/section/div[2]/div/div/div[3]/div/table/tbody/tr/td[8]/a/@href')__ locates the column of the hyperlinks belonging to and __html_text()__ reads the data from that column.
 
@@ -201,9 +202,9 @@ As shown in Table 1, the air accidents dataset contains `r dim(df_air_crash)[1]`
 
 Barplots are employed to see what types of aircraft is involved in most air accidents and what types of aircraft cause the most fatalities. After grouping the data by __A/C Type__, I sum the __Fatalities__ and count the number of air accidents for each type of aircraft. __gather()__ and __facet_wrap()__ are used to generate these two plots. 
 
-Top 10 aircraft types are shown in the graphs below. __Boeing 777-200__ have the most deaths and __PZL-Mielec AN-2__ has been involved in the most accidents in the past 10 years. Interestingly, the A/C Type which causes hundreds of deaths are not among the types which are most frequently involved in accidents, except for __Lockheed C-130 Hercules__. One possible reason for this phenomenon is that __Boeing__ and __Airbus__ produce commercial airplanes that can contain hundreds of people and a handful of fatal air crashes can lead to hundreds of fatalities. 
+Top 10 aircraft types are shown in Figure 1. __Boeing 777-200__ has caused the most deaths and __PZL-Mielec AN-2__ has been involved in the most accidents in the past 10 years. Interestingly, the A/C Type which causes hundreds of deaths are not among the types which are most frequently involved in accidents, except for __Lockheed C-130 Hercules__. One possible reason for this phenomenon is that __Boeing__ and __Airbus__ produce commercial airplanes that can contain hundreds of people and a handful of fatal air crashes can lead to hundreds of fatalities. 
 
-In conclusion, the capacity of different aircrafts must be taken in to consideration when talking about the safety. 
+In conclusion, the capacity of different aircrafts must be taken in to consideration when we evaluate the flight safety. 
 
 ```{r exploratory.by.type.plot, echo=FALSE, fig.cap = "Frequency and Fatalities of Air Accidents by Aircraft Type."}
 crash_by_type <- df_air_crash %>%
@@ -244,10 +245,6 @@ ggplot(data = crash_by_phase, mapping = aes(x = `Flight Phase`, y = n)) +
 ```
 
 
-## Location
-
-The number of air crashes and fatalities by location is computed in this part. 
-
 ```{r exploratory.by.location.plot, echo=FALSE}
 # seems to be meaningless
 crash_by_location <- df_air_crash %>%
@@ -264,7 +261,7 @@ crash_by_location <- df_air_crash %>%
   #xlab("Location") + ylab("Number") + coord_flip()
 ```
 
-# Time series
+# Time Series for Commercial Flights
 
 ```{r show.ts.crash, echo=FALSE, message = FALSE, fig.cap="Number of Air Accidents and Fatalities per Year"}
 crash_by_year <- df_air_crash %>%
@@ -295,13 +292,13 @@ In this section, records are grouped by year, and I'm interested in the trend of
 
 Figure 3 indicates that the fatalities related to air accidents fluctuate around 800 per year, and the number of air accidents has deacreased from 160 to 110 from 2009 to 2018. The problem is whether fluctuating fatalities caused by air crashes each year indicates no improvement in flight safety.
 
-Figure 4 shows that the number of commercial flights scheduled and number of passengers each year has been increasing in the past ten years. Therefore, it's more appropriate to evaluate the flight safety by the ratio of fatalities to the number of passengers aboard or the __fatal accident rate__, which is the ratio of number of fatal air accidents to the total number of flights. 
+Figure 4 shows that the number of commercial flights scheduled and number of passengers each year has been increasing in the past ten years. Therefore, it's more appropriate to evaluate the flight safety by the ratio of fatalities to the number of passengers aboard and __fatal accident rate__, which is the ratio of number of fatal air accidents to the total number of flights, because they're normalized and can fairly reflect the true trend of flight safety.
 
 Note that the data of the number of flights and passengers are only for commercial flights. Therefore, only the air accidents with the flight type of "Scheduled Revenue Flight" can be used to calculate those ratios for commercial flights.
 
-## fatalities per passengers boarded
+## Fatalities per Passengers Boarded
 
-```{r show.ts.fata.per.pass, echo=FALSE, message = FALSE, fig.cap="Fatalities per Passengers Boarded per Year."}
+```{r show.ts.fata.per.pass, echo=FALSE, message = FALSE, fig.cap="Fatalities per Passengers Boarded per Year.", fig.width = 7, fig.height=3.5}
 fata_per_pass <- df_air_crash %>%
   filter(`Flight Type` == "Scheduled Revenue Flight") %>%
   mutate(year = year(Date)) %>%
@@ -316,9 +313,9 @@ ggplot(data = fata_per_pass, mapping = aes(x = year, y = ratio)) +
 
 Figure 5 shows a downward trend for the number of victims per one million passengers for commercial flights. 2014 and 2018 are two abnormal years because the number of fatalities do not follow the overall trend for these two years. In 2018, there were two major air crashed that caused more than 300 deaths. One of them is the Boeing 737 MAX 8 that crashed in Jakarta and killed 189 people. In 2014, there were three air crashes that involved Boeing and Airbus. These three major accidents killed 162, 298 and 239, respectively.
 
-## fatal accident rate
+## Fatal Accident Rate
 
-```{r show.ts.fata.acc.rate, echo=FALSE, message = FALSE, fig.cap="Fatal Accident Rate per Year."}
+```{r show.ts.fata.acc.rate, echo=FALSE, message = FALSE, fig.cap="Fatal Accident Rate per Year.", fig.width = 7, fig.height=3.5}
 fata_acc_rate <- df_air_crash %>%
   filter(Fatalities > 0 & `Flight Type` == "Scheduled Revenue Flight") %>%
   mutate(year = year(Date)) %>%
@@ -331,46 +328,172 @@ ggplot(data = fata_acc_rate, mapping = aes(x = year, y = ratio)) +
   geom_point() + geom_line() + ylab("fatal accidents per one million flights") + xlab("year")
 ```
 
-Figure 6 indicates that the number of air accidents that caused deaths per one million flights has been decreasing in the past ten years. However, the decreasing fatal accidents rate does not necessarily mean that the number of victims related to air crash also goes down. It's clear that Figure 6 fails to capture the extreme high fatalities in 2014 and 2018. Though the number of crashes was small in 2014 and 2018, those accidents involved high-capacity commercial airplanes. 
+Figure 6 indicates that the number of air accidents that caused deaths per one million flights has been decreasing in the past ten years. However, the decreasing fatal accidents rate does not necessarily mean that the number of victims related to air crash also goes down. It's clear that Figure 6 fails to capture the extremely high fatalities in 2014 and 2018. Though the number of crashes was normal in 2014 and 2018, it is because those accidents involved high-capacity commercial airplanes. 
 
-In conclusion, except for some extreme years, the commerical flights have become safer over the past ten years. In addition, the number of fatal accidents keeps going down. Air crashes that involve high-capacity planes, such as Boeing and Airbus, lead to significant increase in the fatalities.
+```{r std.cor.plot, echo=FALSE, warning=FALSE, fig.height=4.3, fig.width=7, fig.cap="Relation between the Number of Fatal Air Crashes Involving Boeing and Airbus and Fatality per One Million Passengers per Year"}
+num_boeing_airbus_fatal <- df_air_crash %>%
+  filter(Fatalities > 0 
+         & (str_detect(`A/C Type`, '\\bBoeing\\b') | str_detect(`A/C Type`, '\\bAirbus\\b')) 
+         & `Flight Type` == "Scheduled Revenue Flight") %>%
+  mutate(year = year(Date)) %>% 
+  group_by(year) %>%
+  count()
+
+cor_n_ratio <- left_join(fata_per_pass, num_boeing_airbus_fatal, by="year") %>%
+  select(year, n, ratio)
+
+cor_n_ratio$n[which(cor_n_ratio$year==2017)] = 0
+
+plot_n_ratio <- cor_n_ratio %>%
+  mutate(n = scale(n), ratio = scale(ratio)) %>%
+  gather(key = "variable", value = "value", -year)
+
+ggplot(data = plot_n_ratio, mapping = aes(x = year, y = value, color = variable)) + 
+  geom_point() + geom_line() + ylab("standardized value") +
+  scale_color_discrete(labels = c("number of air crashes", "fatality per one million passengers")) + 
+  theme(legend.position=c(0.9, 0.9))
+```
+
+Furthermore, Figure 7 indicates the strong correlation between the death rate per one million passengers and the fatal accidents involving Boeing and Airbus, and its correaltion is `r cor(cor_n_ratio$ratio, cor_n_ratio$n)`. 
+
+__str_match()__ is used to select the fatal accidents that involved Airbus and Boeing along with __filter()__. Regular expressions used here are __\\bBoeing\\b__ and __\\bAirbus\\b__. Two variables included in Figure 7 are scaled with respect to their mean and standard deviation, respectively. Since there was no fatal accident related to these two giant manufacturers in 2014, the number of accidents for that year should be set equal to 0 manually, instead of leaving it N/A.
+
+In conclusion, except for some extreme years, the commerical flights have become safer over the past ten years in terms of fatality rate per passenger. In addition, the rate of fatal accidents keeps going down. However, air crashes that involve high-capacity planes, such as Boeing and Airbus, lead to significant increase in the fatalities. 
 
 # Text Mining
 
-BAAA provides information of the circumstances when the air accident happened and there would be one section called "Probablie Causes" if the investigation was finished. I'm interested in the key factors that lead to a fatal air accident and try to use text mining techniques to find them. Naive term frequency and TF-IDF are both tried and the results are compared in this section.
+BAAA provides information of the circumstances when the air accident happened and there would be one section called "Probable cause" if the investigation had been done. I'm interested in the key factors that lead to fatal air accidents and try to use text mining techniques to detect them. 
 
-## Term Frequency
+Since the investigation of some fatal accidents has not been completed, there is no __Probable cause__, i.e. its value is N/A. Instead of leaving a lot of blanks, __ifelse()__ is used to substitute the __Circumstances__ for __Probable causes__ for those unclosed investigations. 
 
-Term frequency for a certain word is defined as the number of appearance in all the __Probable cause__s. 
+Since commercial flights are more related to our daily life, I decide to investigate the causes of air crashes with __Flight Type__ of "Scheduled Revenue Flight". __filter()__ helps select those air accidents related to commercial flights.
 
-```{r text.count, echo=FALSE}
+N-gram model, including n = 1, is the major tool I use in this section.
+
+```{r unite.desc, echo=FALSE}
 # load the stop_words dataset, we'll remove the stop-words in the detain later.
 data("stop_words")
 
-words_air_crash <- df_air_crash %>%
+desc_accident <- df_air_crash %>%
+  filter(`Flight Type` == "Scheduled Revenue Flight") %>%
+  #filter(str_detect(`A/C Type`, '\\bBoeing\\b') | str_detect(`A/C Type`, '\\bAirbus\\b')) %>%
+  #unite(description, Circumstances, `Probable cause`, sep = " ")
+  mutate(description = ifelse(Fatalities > 0 & !is.na(`Probable cause`), `Probable cause`, Circumstances)) %>%
+  select(description, Fatalities) 
+```
+
+## Single Word
+
+```{r word.count, echo=FALSE, fig.cap="Word Cloud for Top 30 Frequent Words in \"description\""}
+single_word_acc <- desc_accident %>% 
   filter(Fatalities > 0) %>%
-  select(`Probable cause`) %>%
-  unnest_tokens(word, `Probable cause`) %>% 
+  select(description) %>%
+  unnest_tokens(word, description) %>% 
   anti_join(stop_words, by="word") %>%
   filter(!is.na(word)) %>%
   group_by(word) %>%
-  count() %>%
-  arrange(desc(n))
-
-# words_air_crash %>% group_by(word) %>% count() %>% arrange(desc(n))
+  count() %>% ungroup() %>%
+  mutate(rank = min_rank(desc(n))) %>%
+  filter(rank <= 30) %>%
+  arrange(rank)
+# set the color of the word cloud
+pal = brewer.pal(8,"Pastel2")
+# plot the word cloud
+single_word_acc %>%
+  with(wordcloud(word, n, max.words = nrow(single_word_acc), colors = pal))
 ```
+
+__str_detect()__ helps select the air accidents related to Boeing and Airbus. The accidents with and without fatalities are included. After using __unnest_tokens()__ to tokenize the __desciption__ and removing the stop words, I group the records by word and count their frequency. Top 30 words are selected to present in a word cloud (Figure 8).
+
+The bigger the word is, the more often it appears in the __description__. The top 3 largest words, "aircraft", "flight" and "crew", almost contain no information of the accidents because they're commonly used in articles related to plane. The fourth most frequent word, "approach", may indicate that the air accidents occur during the approach, the flight phase shown to have the most air accidents (Figure 1).
+
+On the other hand, the words that appear less frequently can be the main reasons for air accidents. "weather" may indicate bad weather, "control" may be part of "loss of control", and "fire" may imply that the there was fire on the plane. These words make more sense than the words mentioned in the last paragraph. However, they can be from different paraphrases and cannot indicate the true causes. So, the complete paraphrases seem more favorable to me. Therefore, I'd like to try bigram and trigram in the following parts.
+
+## Bigram
+
+```{r bigram.count, echo=FALSE, fig.cap="Word Cloud for Top 20 Frequent Bigrams in \"description\""}
+bigram_acc <- desc_accident %>%
+  filter(Fatalities > 0) %>%
+  select(description) %>%
+  unnest_tokens(word, description) %>% 
+  filter(!is.na(word)) %>%
+  anti_join(stop_words, by="word") %>%
+  mutate(id = row_number()) %>%
+  spread(id, word) %>%
+  unite(col = "description", sep=" ") %>%
+  unnest_tokens(bigram, description, token = "ngrams", n = 2) %>%
+  group_by(bigram) %>%
+  count() %>% ungroup() %>%
+  mutate(rank = min_rank(desc(n))) %>%
+  # filter(rank <= 30) %>%
+  arrange(rank)
+# plot the word cloud
+bigram_acc %>%
+  with(wordcloud(bigram, n, max.words = 20, colors = pal))
+```
+
+For bigram and trigram model, I don't want to filter out any phrase that contains some stop words. Though they mean nothing when they're single words, they can make up phrases that provide information. For example, "loss of control" consists "of" and it's a stop word. If I remove all the phrases that contain stop words, I must lose some valuable information. Therefore, I decide remove all the stop words from __description__ before converting the __descripiton__ to bigram or trigram using __unnest_tokens()__. 
+
+First, __unnest_tokens()__ is used to split the __description__ into single words. Then, __anti_join()__ is utilized to remove the stop words. After that, __spread()__ along with __unite()__ helps recover the description but with no stop word.
+
+Without stop words, we lose the structure of phrases. However, sometime we can recover the original meaning using our knowledge. Though the biggest word, "flight crew", in Figure 9 is uninformative, "weather conditions" and "poor weather" are two phrases with high frequency in the __description__ of fatal air accidents, which implies that bad weather may be highly related to air crash. It may not directly cause an air crash, but it can cause problems for the pilots, such as low visibility, and increase the chance that human make mistakes. 
+
+## Trigram
+
+```{r trigram.count, echo=FALSE}
+trigram_acc <- desc_accident %>%
+  filter(Fatalities > 0) %>%
+  select(description) %>%
+  unnest_tokens(word, description) %>% 
+  filter(!is.na(word)) %>%
+  anti_join(stop_words, by="word") %>%
+  mutate(id = row_number()) %>%
+  spread(id, word) %>%
+  unite(col = "description", sep=" ") %>%
+  unnest_tokens(trigram, description, token = "ngrams", n = 3) %>%
+  group_by(trigram) %>%
+  count() %>% ungroup() %>%
+  mutate(rank = min_rank(desc(n))) %>%
+  # filter(rank <= 30) %>%
+  arrange(rank)
+```
+
+Similarly, we can achieve the frequency of trigrams. It is hard to plot a word cloud for trigrams. So, I decide to list some of the important phrases here. 
+
+Among the top 20, the phrases that make sense include "poor weather conditions" (1), "controlled flight terrain" (3), "instrument meteorological conditions" (4), "aircraft hit ground" (8), "minimum descent altitude" (8), "post impact fire" (8) and "auto feather unit" (17). The number in the parentheses is the rank for each trigram. 
+
+"poor weather conditions" ranks the first. It is consistent with our results in __Bigram__. "controlled flight terrain" means controlled flight into terrain, or __CFIT__, which occurs "when an airworthy aircraft under the complete control of the pilot is inadvertently flown into terrain, water, or an obstacle". In addition, "instrument meteorological conditions" indicates low visibility. "post impact fire" means the fire after air crashes. Moreover, "auto feather unit" implies low engine power. These are all factors that can induce fatal air accidents.
+
+For the details, please see: https://www.skybrary.aero/index.php/Main_Page#operational-issues.
 
 ## TF-IDF
 
-```{r text.tf-idf.by.fatal, echo=FALSE}
-if_idf_air_crash_by_fatal <- df_air_crash %>%
+```{r tf.idf.by.fatal, echo=FALSE}
+tf_idf_acc <- desc_accident %>%
   mutate(is_fatal = ifelse(Fatalities > 0, 1, 0)) %>%
-  select(Date, `A/C Type`, Location, Registration, `Flight Phase`, is_fatal, `Probable cause`) %>%
-  unnest_tokens(word, `Probable cause`) %>%
+  select(is_fatal, description) %>%
+  unnest_tokens(word, description) %>% 
+  filter(!is.na(word)) %>%
+  anti_join(stop_words, by="word") %>%
   group_by(is_fatal) %>%
-  count(word) %>%
-  bind_tf_idf(term = word, document = is_fatal, n = n) %>% 
-  arrange(desc(is_fatal), desc(tf_idf)) 
+  mutate(num = row_number()) %>%
+  spread(num, word) %>%
+  unite(col = "description", -is_fatal, sep=" ") %>%
+  unnest_tokens(phrase, description, token = "ngrams", n = 3) %>%
+  group_by(is_fatal) %>%
+  count(phrase) %>%
+  bind_tf_idf(term = phrase, document = is_fatal, n = n) %>% ungroup() %>%
+  filter(is_fatal == 1) %>%
+  mutate(rank = min_rank(desc(tf_idf))) %>%
+  filter(rank <= 10) %>%
+  select(phrase, tf_idf, rank) %>%
+  arrange(rank) 
+# show the kable
+knitr::kable(tf_idf_acc, booktabs = TRUE, caption = "Top 10 Phrases Related to Fatal Air Crashes Given by TF-IDF")
 ```
+
+TF stands for Term Frequency, and IDF is short for Inverse Document Frequency. Generally speaking, TF increases the weight of the words with more appearance. However, IDF reduce the importance of words that appear in too many documents. 
+
+Since I'm interested in the determinant factors for fatal air accidents, I split the records into two document, fatal and non-fatal. Also, I choose to use three-word phrases to calculate TF-IDF. However, TF-IDF gives similar results to __Trigram__ (Table 2). 
 
 # Conclusion
