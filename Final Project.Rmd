@@ -203,13 +203,13 @@ rm(list=ls()); gc()
 
 ## Aircraft Type
 
-As shown in Table 1, the air accidents dataset contains `r dim(df_air_crash)[1]` observations and `r dim(df_air_crash)[2]` variables. The `r dim(df_air_crash)[2]` variables are `r paste(names(df_air_crash), collapse = ", ")`.
+The number of air accident records is `r dim(df_air_crash)[1]`. And, there are `r dim(df_air_crash)[2]` variables for each record. The `r dim(df_air_crash)[2]` variables are `r paste(names(df_air_crash), collapse = ", ")`.
 
 Barplots are employed to see what types of aircraft is involved in most air accidents and what types of aircraft cause the most fatalities. After grouping the data by __A/C Type__, I sum the __Fatalities__ and count the number of air accidents for each type of aircraft. __gather()__ and __facet_wrap()__ are used to generate these two plots. 
 
-Top 10 aircraft types are shown in Figure 1. __Boeing 777-200__ has caused the most deaths and __PZL-Mielec AN-2__ has been involved in the most accidents in the past 10 years. Interestingly, the A/C Type which causes hundreds of deaths are not among the types which are most often involved in accidents, except for __Lockheed C-130 Hercules__. One possible reason for this phenomenon is that __Boeing__ and __Airbus__ produce commercial airplanes that can contain hundreds of people and a handful of fatal air crashes can lead to hundreds of fatalities. 
+Top 10 aircraft types are shown in Figure 1. __Boeing 777-200__ has caused the most deaths and __PZL-Mielec AN-2__ has been involved in the most accidents in the past 10 years. Interestingly, the A/C Type which causes hundreds of deaths are not among the types which are most often involved in accidents, except for __Lockheed C-130 Hercules__. One possible reason for this phenomenon is that __Boeing__ and __Airbus__ produce commercial airplanes that can contain hundreds of people and several fatal air accidents can lead to hundreds of fatalities. 
 
-In conclusion, the capacity of different aircrafts must be taken in to consideration when we evaluate the flight safety. 
+Thus, the difference in aircraft capacity must be taken in to consideration when we evaluate the flight safety. 
 
 ```{r exploratory.by.type.plot, echo=FALSE, fig.cap = "Frequency and Fatalities of Air Accidents by Aircraft Type."}
 crash_by_type <- df_air_crash %>%
@@ -230,7 +230,7 @@ ggplot(data = crash_by_type, mapping = aes(x = `A/C Type`, y = n)) +
 
 ## Flight Phase
 
-Barplots in Figure 2 shows that nearly half of the accidents that occur during the landing phase. Though only 1/4 of the accidents happen during the flight, the fatalities caused in this phase are as many as that those caused during the landing phase. 
+Barplots in Figure 2 shows that nearly half of the accidents that occur during the landing phase. Though only 1/4 of the total air accidents happen during the flight, the fatalities caused in this phase are as many as that those caused during the landing phase. 
 
 When the plane is landing, it has lower speed and lower altitude. So, even the airplane accidents during the landing or approaching phase occur more often than during flight, the chance of surviving must be higher than the accident in the sky. What's more, landing or approaching means that the plane is near an airport, where the people are ready for any emergency situation. 
 
@@ -359,11 +359,11 @@ ggplot(data = plot_n_ratio, mapping = aes(x = year, y = value, color = variable)
   theme(legend.position=c(0.9, 0.9))
 ```
 
-Furthermore, Figure 7 indicates the strong correlation between the death rate per one million passengers and the fatal accidents involving Boeing and Airbus, and its correaltion is `r cor(cor_n_ratio$ratio, cor_n_ratio$n)`. 
+Furthermore, Figure 7 indicates the strong correlation between fatalities per one million passengers and the fatal accidents involving Boeing and Airbus, and its correaltion is `r cor(cor_n_ratio$ratio, cor_n_ratio$n)`. 
 
 __str_match()__ is used to select the fatal accidents that involved Airbus and Boeing along with __filter()__. Regular expressions used here are __\\bBoeing\\b__ and __\\bAirbus\\b__. Two variables included in Figure 7 are scaled with respect to their mean and standard deviation, respectively. Since there was no fatal accident related to these two giant manufacturers in 2014, the number of accidents for that year should be set equal to 0 manually, instead of leaving it N/A.
 
-In conclusion, except for some extreme years, the commerical flights have become safer over the past ten years in terms of death rate per passenger. In addition, the rate of fatal accidents keeps going down. However, air crashes that involve high-capacity planes, such as Boeing and Airbus, lead to significant increase in the fatalities. 
+In conclusion, except for some extreme years, the commerical flights have become safer over the past ten years in terms of fatalities per one million passengers. In addition, the rate of fatal accidents keeps going down. However, air crashes that involve high-capacity planes, such as Boeing and Airbus, lead to significant increase in the fatalities. 
 
 # Text Mining
 
@@ -413,7 +413,7 @@ __str_detect()__ helps select the air accidents related to Boeing and Airbus. Th
 
 The bigger the word is, the more often it appears in the __description__. The top 3 largest words, "aircraft", "flight" and "crew", almost contain no information of the accidents because they're commonly used in articles related to plane. The fourth most common word, "approach", may indicate that the air accidents occur during the approach, the flight phase shown to have the most air accidents (Figure 1).
 
-On the other hand, the words that appear less frequently can be the main reasons for air accidents. "weather" may indicate bad weather, "control" may be part of "loss of control", and "fire" may imply that the there was fire on the plane. These words make more sense than the words mentioned in the last paragraph. However, they can be from different paraphrases and cannot indicate the true causes. So, the complete paraphrases seem more favorable to me. Therefore, I'd like to try bigram and trigram in the following parts.
+On the other hand, the words that appear less frequently can be the main reasons for air accidents. "weather" may indicate bad weather, "control" may be part of "loss of control", and "fire" may imply that the there was fire on the plane. These words make more sense than the words with top frequency. Nevertheless, single words can be from different paraphrases and cannot indicate the true causes. So, the complete paraphrases seem more favorable to me. Therefore, I'd like to try bigram and trigram in the following parts.
 
 ## Bigram
 
@@ -439,11 +439,11 @@ bigram_acc %>%
   with(wordcloud(bigram, n, max.words = 15, colors = pal))
 ```
 
-For bigram and trigram model, I don't want to filter out any phrase that contains some stop words. Though they mean nothing when they're single words, they can make up phrases that provide information. For example, "loss of control" consists "of" and it's a stop word. If I remove all the phrases that contain stop words, I must lose some valuable information. Therefore, I decide remove all the stop words from __description__ before converting the __descripiton__ to bigram or trigram using __unnest_tokens()__. 
+For bigram and trigram model, I don't want to filter out all the phrases that contain some stop words. Though they mean nothing when they're single words, they can make up phrases that provide information. For example, there is an "of" inside "lack of fuel", and it's a stop word. If I remove all the phrases that contain stop words, I must lose some valuable information, or even miss the leading factor in air accidents. Therefore, I decide remove all the stop words from __description__ before converting the __descripiton__ to bigram or trigram using __unnest_tokens()__. 
 
 First, __unnest_tokens()__ is used to split the __description__ into single words. Then, __anti_join()__ is utilized to remove the stop words. After that, __spread()__ along with __unite()__ helps recover the description but with no stop word.
 
-Without stop words, we lose the structure of phrases. However, sometime we can recover the original meaning using our knowledge. Though the biggest word, "flight crew", in Figure 9 is uninformative, "weather conditions" and "poor weather" are two phrases with high frequency in the __description__ of fatal air accidents, which implies that bad weather may be highly related to air crash. It may not directly cause an air crash, but it can cause problems for the pilots, such as low visibility, and increase the chance that human make mistakes. 
+Without stop words, we lose the structure of phrases. However, sometime we can recover the original phrases using our knowledge. Though the biggest word, "flight crew", in Figure 9 is uninformative, "weather conditions" and "poor weather" are two phrases with high frequency in the __description__ of fatal air accidents, which implies that bad weather may be highly related to air crash. It may not directly cause an air crash, but it can cause problems for the pilots, such as low visibility, and increase the chance that human make mistakes. 
 
 ## Trigram
 
@@ -501,13 +501,17 @@ tf_idf_acc <- desc_accident %>%
 knitr::kable(tf_idf_acc, booktabs = TRUE, caption = "Top 10 Phrases Related to Fatal Air Crashes Ranked by TF-IDF")
 ```
 
-TF stands for Term Frequency, and IDF is short for Inverse Document Frequency. Generally speaking, TF increases the weight of the words with more appearance. However, IDF reduce the importance of words that appear in too many documents. 
+TF stands for Term Frequency, and IDF is short for Inverse Document Frequency. Generally speaking, TF increases the weight of the words with more appearance. On the other hand, IDF panelizes the words that appear in too many documents. 
 
-Since I'm interested in the determinant factors for fatal air accidents, I split the records into two document, fatal and non-fatal. Also, I choose to use three-word phrases to calculate TF-IDF. However, TF-IDF gives similar results to __Trigram__ (Table 2). 
+Although TF-IDF is usually used to find the keywords for documents as an unsupervised learning model, I can divide the __description__ according to __Fatalities__ into two documents. By ranking the __tf_idf__ of each phrase, I'm able to see whether some words are more important than other words in the reports of fatal air accidents, which could be the main causes for the accidents.
+
+Moreover, I choose to use three-word phrases to calculate TF-IDF. However, TF-IDF gives similar results to __Trigram__ and top 10 phrases are shown in Table 2. 
 
 # Conclusion
 
-In the past 10 years, the aviation safety has been improved in terms of the __fatalities per one million passengers__ and __fatal accident rate__. However, __fatalities per one million passengers__ is found to be highly correlated with the number of accidents that involve high-capacity commercial airplanes. Therefore, leading aircraft manufacturers, like Boeing and Airbus, must shoulder more responsibilty for their customers, such as passengers, airlines and so on. Factors that are likely to cause fatal air accidents, such as __poor weather conditions__, __controlled flight into terrain__ and __post impact fire__, are detected using text mining techniques. Though it's clear that these terms indicate dangerous situations, the true causes still remain unveiled. More advanced text mining techniques are required to check which factors are critical for these fatal accidents, human factor, technical failure, or others. 
+In the past 10 years, the aviation safety has been improved in terms of the __fatalities per one million passengers__ and __fatal accident rate__. However, __fatalities per one million passengers__ is found to be highly correlated with the number of accidents that involve high-capacity commercial airplanes. Therefore, major aircraft manufacturers, like Boeing and Airbus, must shoulder more responsibilty for their customers, such as passengers, airlines and so on. Factors that are likely to cause fatal air accidents, such as __poor weather conditions__, __controlled flight into terrain__ and __post impact fire__, are detected using text mining techniques. Though it's clear that these terms indicate dangerous situations, the true causes still remain unrevealed. More advanced text mining techniques are required to check which factors are critical for these fatal accidents, human factor, technical failure, or others. 
+
+\newpage
 
 # References
 
