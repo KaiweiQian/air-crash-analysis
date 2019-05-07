@@ -356,7 +356,7 @@ plot_n_ratio <- cor_n_ratio %>%
 ggplot(data = plot_n_ratio, mapping = aes(x = year, y = value, color = variable)) + 
   geom_point() + geom_line() + ylab("standardized value") +
   scale_color_discrete(labels = c("number of air crashes", "fatalities per one million passengers")) + 
-  theme(legend.position=c(0.9, 0.9))
+  theme(legend.position=c(0.78, 0.9))
 ```
 
 Furthermore, Figure 7 indicates the strong correlation between fatalities per one million passengers and the fatal accidents involving Boeing and Airbus, and its correaltion is `r cor(cor_n_ratio$ratio, cor_n_ratio$n)`. 
@@ -369,9 +369,7 @@ In conclusion, except for some extreme years, the commerical flights have become
 
 BAAA provides information of the circumstances when the air accident happened and there would be one section called "Probable cause" if the investigation had been done. I'm interested in the key factors that lead to fatal air accidents and try to use text mining techniques to detect them. 
 
-Since the investigation of some fatal accidents has not been completed, there is no __Probable cause__, i.e. its value is N/A. Instead of leaving a lot of blanks, __ifelse()__ is used to substitute the __Circumstances__ for __Probable causes__ for those unclosed investigations. 
-
-Since commercial flights are more related to our daily life, I decide to investigate the causes of air crashes with __Flight Type__ of "Scheduled Revenue Flight". __filter()__ helps select those air accidents related to commercial flights.
+Since the investigation of some fatal accidents has not been completed, there is no __Probable cause__, i.e. its value is N/A. Instead of leaving a lot of blanks, __ifelse()__ is used to substitute the __Circumstances__ for __Probable causes__ for those unclosed investigations. Since commercial flights are more relevant to our daily life, I decide to investigate the causes of air crashes with __Flight Type__ of "Scheduled Revenue Flight". __filter()__ helps select those air accidents related to commercial flights.
 
 N-gram model, including n = 1, is the major tool I use in this section.
 
@@ -471,9 +469,11 @@ Among the top 20, the phrases that make sense include __poor weather conditions_
 
 Some of these trigrams can be interpreted as follows:
 
-__poor weather conditions__ ranks the first. It is consistent with our results in __Bigram__. __controlled flight terrain__ means controlled flight into terrain, or __CFIT__, which occurs "when an airworthy aircraft under the complete control of the pilot is inadvertently flown into terrain, water, or an obstacle" [@sky]. In addition, __instrument meteorological conditions__ indicates low visibility. __post impact fire__ means the fire after air crashes. Moreover, __auto feather unit__ implies low engine power. These are all factors that can induce fatal air accidents.
+__poor weather conditions__ ranks the first. It is consistent with our results in __Bigram__. __controlled flight terrain__ means controlled flight into terrain, or __CFIT__, which occurs "when an airworthy aircraft under the complete control of the pilot is inadvertently flown into terrain, water, or an obstacle" [@sky]. In addition, __instrument meteorological conditions__ indicates low visibility. __post impact fire__ means the fire after air crashes. Moreover, __auto feather unit__ implies low engine power. All of these are the factors that can induce fatal air accidents.
 
 For the details, please see: https://www.skybrary.aero/index.php/Main_Page#operational-issues.
+
+\newpage
 
 ## TF-IDF
 
